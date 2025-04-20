@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>音声録音＋話者判定アプリ</title>
+</head>
+<body>
+    <h1>音声録音＋話者判定アプリ</h1>
+
+    <h2>① 声を登録する (最初に1回)</h2>
+    <button onclick="registerVoice()">声を登録🎤</button>
+
+    <h2>② 話者を判定する (何回でも)</h2>
+    <button onclick="verifyVoice()">話者を判定🎙️</button>
+
+    <h3>結果表示：</h3>
+    <p id="result"></p>
+
+<script>
+const setButtonsDisabled = (isDisabled) => {
+    document.querySelectorAll('button').forEach(btn => btn.disabled = isDisabled);
+};
+
+const recordAudio = (endpoint) => {
+    setButtonsDisabled(true);
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        const mediaRecorder = new MediaRecorder(stream);
+        let audioChunks = [];
+
+        mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+        mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks);
+            const formData = new FormData();
+            formData.append('audio_data', audioBlob, 'audio.webm');
+
+            fetch(endpoint, { method: 'POST', body: formData })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('result').innerText = data.result;
+                    setButtonsDisabled(false);
+                })
+                .catch(error => {
+                    document.getElementById('result').innerText = "エラーが発生しました。";
+                    setButtonsDisabled(false);
+                });
+        };
+
+        mediaRecorder.start();
+        document.getElementById('result').innerText = "録音中…（5秒間）";
+        setTimeout(() => mediaRecorder.stop(), 5000);
+    }).catch(e => {
+        document.getElementById('result').innerText = "マイクへのアクセスが許可されていません。";
+        setButtonsDisabled(false);
+    });
+};
+
+const registerVoice = () => {
+    recordAudio('/register_voice');
+};
+
+const verifyVoice = async () => {
+    const checkRes = await fetch('/is_registered');
+    const checkData = await checkRes.json();
+
+    if (!checkData.registered) {
+        document.getElementById('result').innerText = "⚠️ 声がまだ登録されていません。まずは「声を登録🎤」ボタンで登録をお願いします。";
+        return;
+    }
+
+    recordAudio('/verify_voice');
+};
+
+// 🔴 ページロード時に登録済み情報をリセット
+window.onload = async () => {
+    await fetch('/reset_registration', { method: 'POST' });
+};
+</script>
+</body>
+</html>
