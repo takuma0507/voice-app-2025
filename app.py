@@ -26,10 +26,12 @@ speaker_model = SpeakerRecognition.from_hparams(
 # ③ 共通関数（is_silent, webm_to_wav）
 def is_silent(wav_path, threshold=0.04):
     data, samplerate = sf.read(wav_path)
+    if len(data.shape) > 1:  # ステレオなら
+        data = data.mean(axis=1)  # モノラルに変換
     return max(abs(data)) < threshold
 
 def webm_to_wav(webm_path, wav_path):
-    command = ["ffmpeg", "-y", "-i", webm_path, wav_path]
+    command = ["ffmpeg", "-y", "-i", webm_path, "-ar", "16000", wav_path]
     subprocess.run(command, check=True)
 
 # ④ Flaskルート関数群
@@ -39,7 +41,6 @@ def index():
 
 @app.route('/register_voice', methods=['POST'])
 def register_voice():
-    # 既存コード（変更なし）
     audio = request.files['audio_data']
     audio.save(REGISTERED_WEBM)
     webm_to_wav(REGISTERED_WEBM, REGISTERED_WAV)
@@ -68,7 +69,6 @@ def reset_registration():
             os.remove(file_path)
     return jsonify({"reset": True})
 
-# 🔴【ここに追加する！】
 @app.route('/verify_voice', methods=['POST'])
 def verify_voice():
     if not os.path.exists(REGISTER_FLAG):
@@ -97,6 +97,6 @@ def verify_voice():
 
     return jsonify({"result": result})
 
-# ⑤ 実行部分（最後に置く）
+# ⑤ 実行部分
 if __name__ == "__main__":
     app.run(debug=True)
