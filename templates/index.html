@@ -17,38 +17,53 @@
     <p id="result"></p>
 
 <script>
+let mediaRecorder; // ← グローバル定義
+
 const setButtonsDisabled = (isDisabled) => {
     document.querySelectorAll('button').forEach(btn => btn.disabled = isDisabled);
 };
 
 const recordAudio = (endpoint) => {
-    setButtonsDisabled(true);
+    setButtonsDisabled(true); // ボタン無効化
 
     navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder = new MediaRecorder(stream);
         let audioChunks = [];
 
-        mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+        mediaRecorder.ondataavailable = event => {
+            audioChunks.push(event.data);
+        };
+
         mediaRecorder.onstop = () => {
             const audioBlob = new Blob(audioChunks);
             const formData = new FormData();
             formData.append('audio_data', audioBlob, 'audio.webm');
 
-            fetch(endpoint, { method: 'POST', body: formData })
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('result').innerText = data.result;
-                    setButtonsDisabled(false);
-                })
-                .catch(error => {
-                    document.getElementById('result').innerText = "エラーが発生しました。";
-                    setButtonsDisabled(false);
-                });
+            fetch(endpoint, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('result').innerText = data.result;
+            })
+            .catch(error => {
+                document.getElementById('result').innerText = "エラーが発生しました。";
+            })
+            .finally(() => {
+                setButtonsDisabled(false); // ボタンを再度有効に
+            });
         };
 
         mediaRecorder.start();
         document.getElementById('result').innerText = "録音中…（5秒間）";
-        setTimeout(() => mediaRecorder.stop(), 5000);
+
+        setTimeout(() => {
+            if (mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+            }
+        }, 5000);
+
     }).catch(e => {
         document.getElementById('result').innerText = "マイクへのアクセスが許可されていません。";
         setButtonsDisabled(false);
@@ -71,10 +86,10 @@ const verifyVoice = async () => {
     recordAudio('/verify_voice');
 };
 
-// 🔴 ページロード時に登録済み情報をリセット
-window.onload = async () => {
-    await fetch('/reset_registration', { method: 'POST' });
-};
+// ✅ 本番では以下はOFF推奨
+// window.onload = async () => {
+//     await fetch('/reset_registration', { method: 'POST' });
+// };
 </script>
 </body>
 </html>
