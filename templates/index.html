@@ -56,13 +56,13 @@ const recordAudio = (endpoint) => {
         };
 
         mediaRecorder.start();
-        document.getElementById('result').innerText = "録音中…（3秒間）";
+        document.getElementById('result').innerText = "録音中…（2秒間）";
 
         setTimeout(() => {
             if (mediaRecorder.state === "recording") {
                 mediaRecorder.stop();
             }
-        }, 3000); // ← 3秒で録音を止める
+        }, 2000); // ← 2秒で録音終了！
     }).catch(e => {
         document.getElementById('result').innerText = "マイクへのアクセスが許可されていません。";
         setButtonsDisabled(false);
