@@ -17,24 +17,35 @@ VERIFY_WEBM = os.path.join(UPLOAD_DIR, 'verify.webm')
 VERIFY_WAV = os.path.join(UPLOAD_DIR, 'verify.wav')
 REGISTER_FLAG = os.path.join(UPLOAD_DIR, 'registered_flag.txt')
 
-speaker_model = SpeakerRecognition.from_hparams(
-    source="speechbrain/spkrec-ecapa-voxceleb",
-    savedir="pretrained_models/spkrec",
-    run_opts={"symlink": False}
-)
+# ③ モデル読み込み（tryで安定化＆ログ追加）
+try:
+    print("🔄 モデル読み込み中...")
+    speaker_model = SpeakerRecognition.from_hparams(
+        source="speechbrain/spkrec-ecapa-voxceleb",
+        savedir="pretrained_models/spkrec",
+        run_opts={"symlink": False}
+    )
+    print("✅ モデル読み込み完了！")
+except Exception as e:
+    print(f"❌ モデルの読み込みに失敗しました: {e}")
+    speaker_model = None
 
-# ③ 共通関数（is_silent, webm_to_wav）
+# ④ 共通関数（is_silent, webm_to_wav）
 def is_silent(wav_path, threshold=0.04):
     data, samplerate = sf.read(wav_path)
-    if len(data.shape) > 1:  # ステレオなら
-        data = data.mean(axis=1)  # モノラルに変換
+    if len(data.shape) > 1:  # ステレオならモノラルに変換
+        data = data.mean(axis=1)
     return max(abs(data)) < threshold
 
 def webm_to_wav(webm_path, wav_path):
     command = ["ffmpeg", "-y", "-i", webm_path, "-ar", "16000", wav_path]
-    subprocess.run(command, check=True)
+    try:
+        subprocess.run(command, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ ffmpegエラー: {e}")
+        raise
 
-# ④ Flaskルート関数群
+# ⑤ Flaskルート関数群
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -43,7 +54,11 @@ def index():
 def register_voice():
     audio = request.files['audio_data']
     audio.save(REGISTERED_WEBM)
-    webm_to_wav(REGISTERED_WEBM, REGISTERED_WAV)
+
+    try:
+        webm_to_wav(REGISTERED_WEBM, REGISTERED_WAV)
+    except:
+        return jsonify({"result": "❌ 音声ファイル変換中にエラーが発生しました。"})
 
     if is_silent(REGISTERED_WAV):
         os.remove(REGISTERED_WEBM)
@@ -76,13 +91,19 @@ def verify_voice():
 
     audio = request.files['audio_data']
     audio.save(VERIFY_WEBM)
-    
-    webm_to_wav(VERIFY_WEBM, VERIFY_WAV)
+
+    try:
+        webm_to_wav(VERIFY_WEBM, VERIFY_WAV)
+    except:
+        return jsonify({"result": "❌ 音声ファイル変換中にエラーが発生しました。"})
 
     if is_silent(VERIFY_WAV):
         os.remove(VERIFY_WEBM)
         os.remove(VERIFY_WAV)
         return jsonify({"result": "⚠️ 音声が検出されませんでした。もう一度しっかり発話してください。"})
+
+    if speaker_model is None:
+        return jsonify({"result": "❌ モデルが読み込まれていません。サーバー再起動が必要です。"})
 
     score, _ = speaker_model.verify_files(REGISTERED_WAV, VERIFY_WAV)
 
@@ -97,6 +118,6 @@ def verify_voice():
 
     return jsonify({"result": result})
 
-# ⑤ 実行部分
+# ⑥ 実行部分（本番では不要なので debug=True は外す）
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
