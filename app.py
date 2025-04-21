@@ -15,12 +15,12 @@ VERIFY_WEBM = os.path.join(UPLOAD_DIR, 'verify.webm')
 VERIFY_WAV = os.path.join(UPLOAD_DIR, 'verify.wav')
 REGISTER_FLAG = os.path.join(UPLOAD_DIR, 'registered_flag.txt')
 
-# モデルのロード（エラー時もログ出力）
+# ✅ 軽量モデルに変更（x-vector）
 try:
-    print("🔄 モデル読み込み中...")
+    print("🔄 軽量モデル読み込み中...")
     speaker_model = SpeakerRecognition.from_hparams(
-        source="speechbrain/spkrec-ecapa-voxceleb",
-        savedir="pretrained_models/spkrec",
+        source="speechbrain/spkrec-xvect-voxceleb",  # ← ここを変更
+        savedir="pretrained_models/spkrec-xvect",    # ← 保存先フォルダも変更しておくとよい
         run_opts={"symlink": False}
     )
     print("✅ モデル読み込み完了！")
@@ -28,26 +28,14 @@ except Exception as e:
     print(f"❌ モデルの読み込みに失敗しました: {e}")
     speaker_model = None
 
-# 無音判定関数
 def is_silent(wav_path, threshold=0.04):
     data, samplerate = sf.read(wav_path)
     if len(data.shape) > 1:
         data = data.mean(axis=1)
     return max(abs(data)) < threshold
 
-# WebM→WAV変換関数（2秒カット対応）
 def webm_to_wav(webm_path, wav_path):
-    """
-    WebM形式の音声ファイルを2秒で切り出しWAVへ変換
-    """
-    command = [
-        "ffmpeg",
-        "-y",
-        "-i", webm_path,
-        "-t", "2",           # ← 録音長を2秒でカット
-        "-ar", "16000",      # ← 16kHzに変換（モデル対応）
-        wav_path
-    ]
+    command = ["ffmpeg", "-y", "-i", webm_path, "-t", "2", "-ar", "16000", wav_path]
     try:
         subprocess.run(command, check=True)
         print("✅ ffmpegでWAV変換＆2秒切り出し成功")
