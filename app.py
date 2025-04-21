@@ -34,7 +34,7 @@ def is_silent(wav_path, threshold=0.04):
     return max(abs(data)) < threshold
 
 def webm_to_wav(webm_path, wav_path):
-    command = ["ffmpeg", "-y", "-i", webm_path, "-ar", "16000", wav_path]
+    command = ["ffmpeg", "-y", "-i", webm_path, "-t", "3", "-ar", "16000", wav_path]
     try:
         subprocess.run(command, check=True)
     except subprocess.CalledProcessError as e:

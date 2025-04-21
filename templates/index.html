@@ -17,14 +17,14 @@
     <p id="result"></p>
 
 <script>
-let mediaRecorder; // ← グローバル定義
+let mediaRecorder;
 
 const setButtonsDisabled = (isDisabled) => {
     document.querySelectorAll('button').forEach(btn => btn.disabled = isDisabled);
 };
 
 const recordAudio = (endpoint) => {
-    setButtonsDisabled(true); // ボタン無効化
+    setButtonsDisabled(true);
 
     navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
         mediaRecorder = new MediaRecorder(stream);
@@ -51,19 +51,18 @@ const recordAudio = (endpoint) => {
                 document.getElementById('result').innerText = "エラーが発生しました。";
             })
             .finally(() => {
-                setButtonsDisabled(false); // ボタンを再度有効に
+                setButtonsDisabled(false);
             });
         };
 
         mediaRecorder.start();
-        document.getElementById('result').innerText = "録音中…（5秒間）";
+        document.getElementById('result').innerText = "録音中…（3秒間）";
 
         setTimeout(() => {
             if (mediaRecorder.state === "recording") {
                 mediaRecorder.stop();
             }
-        }, 5000);
-
+        }, 3000); // ← 3秒で録音を止める
     }).catch(e => {
         document.getElementById('result').innerText = "マイクへのアクセスが許可されていません。";
         setButtonsDisabled(false);
@@ -85,11 +84,6 @@ const verifyVoice = async () => {
 
     recordAudio('/verify_voice');
 };
-
-// ✅ 本番では以下はOFF推奨
-// window.onload = async () => {
-//     await fetch('/reset_registration', { method: 'POST' });
-// };
 </script>
 </body>
 </html>
